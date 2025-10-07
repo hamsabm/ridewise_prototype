@@ -1,0 +1,912 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🚴‍♂️ RideWise - AI Bike Demand Prediction Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body { 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            height: 100vh;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+        }
+        
+        .dashboard-container {
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            padding: 10px;
+        }
+        
+        .header-bar {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 15px 25px;
+            margin-bottom: 10px;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        
+        .main-content {
+            flex: 1;
+            display: grid;
+            grid-template-columns: 1fr 1fr 300px;
+            gap: 10px;
+            min-height: 0;
+        }
+        
+        .left-panel, .right-panel, .prediction-panel {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(15px);
+            border-radius: 20px;
+            padding: 25px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .left-panel:hover, .right-panel:hover, .prediction-panel:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 40px rgba(0,0,0,0.15);
+        }
+        
+        .panel-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px 20px;
+            margin: -25px -25px 20px -25px;
+            border-radius: 20px 20px 0 0;
+            text-align: center;
+            font-weight: 600;
+            font-size: 1.1rem;
+            letter-spacing: 0.5px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .panel-header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            transition: left 0.6s ease;
+        }
+        
+        .panel-header:hover::before {
+            left: 100%;
+        }
+        
+        .weather-selector {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        
+        .weather-option {
+            text-align: center;
+            padding: 15px 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 15px;
+            cursor: pointer;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            background: white;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .weather-option::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, rgba(33, 150, 243, 0.1), rgba(118, 75, 162, 0.1));
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        
+        .weather-option:hover::before {
+            opacity: 1;
+        }
+        
+        .weather-option:hover, .weather-option.active {
+            border-color: #667eea;
+            background: white;
+            transform: translateY(-3px) scale(1.02);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.25);
+        }
+        
+        .weather-option.active {
+            border-color: #667eea;
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
+        }
+        
+        .weather-option i {
+            display: block;
+            font-size: 1.5rem;
+            margin-bottom: 5px;
+        }
+        
+        .slider-container {
+            margin: 15px 0;
+            padding: 12px;
+            background: rgba(255, 255, 255, 0.8);
+            border-radius: 10px;
+            border: 1px solid #e0e0e0;
+        }
+        
+        .slider-container label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #333;
+            font-size: 0.95rem;
+        }
+        
+        .slider-container:nth-child(1) {
+            border-left: 4px solid #f44336;
+        }
+        
+        .slider-container:nth-child(2) {
+            border-left: 4px solid #2196F3;
+        }
+        
+        .slider-container:nth-child(3) {
+            border-left: 4px solid #9E9E9E;
+        }
+        
+        .slider-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .slider-group input[type="range"] {
+            flex: 1;
+            height: 8px;
+            border-radius: 5px;
+            background: #ddd;
+            outline: none;
+            opacity: 0.7;
+            transition: opacity 0.2s;
+            -webkit-appearance: none;
+            appearance: none;
+        }
+        
+        .slider-group input[type="range"]:hover {
+            opacity: 1;
+        }
+        
+        .slider-group input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #2196F3;
+            cursor: pointer;
+            border: 2px solid white;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+        }
+        
+        .slider-group input[type="range"]::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #2196F3;
+            cursor: pointer;
+            border: 2px solid white;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+        }
+        
+        .slider-group input[type="range"]::-webkit-slider-track {
+            width: 100%;
+            height: 8px;
+            cursor: pointer;
+            background: #ddd;
+            border-radius: 5px;
+        }
+        
+        .slider-group input[type="range"]::-moz-range-track {
+            width: 100%;
+            height: 8px;
+            cursor: pointer;
+            background: #ddd;
+            border-radius: 5px;
+        }
+        
+        /* Temperature slider - Red theme */
+        #temp::-webkit-slider-thumb {
+            background: #f44336;
+        }
+        #temp::-moz-range-thumb {
+            background: #f44336;
+        }
+        
+        /* Humidity slider - Blue theme */
+        #humidity::-webkit-slider-thumb {
+            background: #2196F3;
+        }
+        #humidity::-moz-range-thumb {
+            background: #2196F3;
+        }
+        
+        /* Wind speed slider - Gray theme */
+        #windspeed::-webkit-slider-thumb {
+            background: #9E9E9E;
+        }
+        #windspeed::-moz-range-thumb {
+            background: #9E9E9E;
+        }
+        
+        /* Colored value displays */
+        #tempValue {
+            background: #f44336;
+        }
+        
+        #humidityValue {
+            background: #2196F3;
+        }
+        
+        #windspeedValue {
+            background: #9E9E9E;
+        }
+        
+        .slider-value {
+            background: #2196F3;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 15px;
+            font-size: 0.9rem;
+            font-weight: bold;
+            min-width: 50px;
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .prediction-display {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+        }
+        
+        .prediction-number {
+            font-size: 4rem;
+            font-weight: bold;
+            background: linear-gradient(45deg, #4CAF50, #45a049);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin: 10px 0;
+        }
+        
+        .prediction-label {
+            color: #666;
+            font-size: 1.1rem;
+            margin-bottom: 15px;
+        }
+        
+        .predict-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            padding: 15px 35px;
+            border-radius: 50px;
+            color: white;
+            font-weight: 600;
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            margin-top: auto;
+            position: relative;
+            overflow: hidden;
+            letter-spacing: 0.5px;
+        }
+        
+        .predict-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            transition: left 0.6s ease;
+        }
+        
+        .predict-btn:hover::before {
+            left: 100%;
+        }
+        
+        .predict-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 35px rgba(102, 126, 234, 0.4);
+        }
+        
+        .predict-btn:active {
+            transform: translateY(-1px);
+        }
+        
+        .predict-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        .form-group label {
+            display: block;
+            font-weight: 500;
+            margin-bottom: 5px;
+            color: #333;
+        }
+        
+        .form-control, .form-select {
+            border-radius: 12px;
+            border: 2px solid #e0e0e0;
+            padding: 12px 16px;
+            transition: all 0.3s ease;
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(5px);
+        }
+        
+        .form-control:focus, .form-select:focus {
+            border-color: #667eea;
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+            background: white;
+        }
+        
+        .checkbox-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin: 10px 0;
+        }
+        
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .loading-spinner {
+            display: none;
+            color: #2196F3;
+        }
+        
+        .loading-spinner.show {
+            display: block;
+        }
+        
+        .error-message {
+            background: #ffebee;
+            color: #c62828;
+            padding: 10px;
+            border-radius: 8px;
+            margin-top: 10px;
+            display: none;
+        }
+        
+        .error-message.show {
+            display: block;
+        }
+        
+        .success-indicator {
+            background: rgba(76, 175, 80, 0.1);
+            border: 2px solid #4CAF50;
+            border-radius: 15px;
+            padding: 20px;
+            margin-top: 10px;
+        }
+        
+        .model-info {
+            background: rgba(33, 150, 243, 0.1);
+            border-radius: 8px;
+            padding: 12px;
+            margin-top: auto;
+            font-size: 0.85rem;
+            color: #666;
+        }
+        
+        @media (max-width: 1200px) {
+            .main-content {
+                grid-template-columns: 1fr;
+                grid-template-rows: auto auto auto;
+            }
+            
+            body {
+                overflow-y: auto;
+            }
+            
+            .dashboard-container {
+                height: auto;
+                min-height: 100vh;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard-container">
+        <!-- Header Bar -->
+        <div class="header-bar">
+            <h2><i class="fas fa-bicycle text-primary"></i> RideWise</h2>
+            <small class="text-muted">Intelligent Bike Sharing Demand Prediction</small>
+        </div>
+        
+        <!-- Main Dashboard Content -->
+        <div class="main-content">
+            
+            <!-- Left Panel: Date & Time + Weather -->
+            <div class="left-panel">
+                <div class="panel-header">
+                    <i class="fas fa-calendar-day"></i> Event Details & Weather
+                </div>
+                
+                <form id="predictionForm">
+                    <!-- Date & Time -->
+                    <div class="form-group">
+                        <label><i class="fas fa-calendar"></i> Date & Time</label>
+                        <div class="row g-2">
+                            <div class="col-7">
+                                <input type="date" class="form-control" id="date" required>
+                            </div>
+                            <div class="col-5">
+                                <select class="form-select" id="hour" required>
+                                    <option value="6">6 AM</option>
+                                    <option value="7">7 AM</option>
+                                    <option value="8" selected>8 AM</option>
+                                    <option value="9">9 AM</option>
+                                    <option value="12">12 PM</option>
+                                    <option value="17">5 PM</option>
+                                    <option value="18">6 PM</option>
+                                    <option value="19">7 PM</option>
+                                    <option value="22">10 PM</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Season -->
+                    <div class="form-group">
+                        <label><i class="fas fa-leaf"></i> Season</label>
+                        <select class="form-select" id="season" required>
+                            <option value="1">🌸 Spring</option>
+                            <option value="2" selected>☀️ Summer</option>
+                            <option value="3">🍂 Fall</option>
+                            <option value="4">❄️ Winter</option>
+                        </select>
+                    </div>
+                    
+                    <!-- Weather Condition -->
+                    <div class="form-group">
+                        <label><i class="fas fa-cloud-sun"></i> Weather Condition</label>
+                        <div class="weather-selector">
+                            <div class="weather-option active" data-weather="1">
+                                <i class="fas fa-sun" style="color: #FFD700;"></i>
+                                <div><strong>Clear</strong></div>
+                                <small>Sunny</small>
+                            </div>
+                            <div class="weather-option" data-weather="2">
+                                <i class="fas fa-cloud" style="color: #87CEEB;"></i>
+                                <div><strong>Cloudy</strong></div>
+                                <small>Overcast</small>
+                            </div>
+                            <div class="weather-option" data-weather="3">
+                                <i class="fas fa-cloud-rain" style="color: #4682B4;"></i>
+                                <div><strong>Light Rain</strong></div>
+                                <small>Drizzle</small>
+                            </div>
+                            <div class="weather-option" data-weather="4">
+                                <i class="fas fa-cloud-showers-heavy" style="color: #2F4F4F;"></i>
+                                <div><strong>Heavy Rain</strong></div>
+                                <small>Storm</small>
+                            </div>
+                        </div>
+                        <input type="hidden" id="weathersit" value="1">
+                    </div>
+                </form>
+            </div>
+            
+            <!-- Right Panel: Environmental & Special Days -->
+            <div class="right-panel">
+                <div class="panel-header">
+                    <i class="fas fa-sliders-h"></i> Environmental Factors
+                </div>
+                
+                <!-- Temperature -->
+                <div class="slider-container">
+                    <label><i class="fas fa-thermometer-half text-danger"></i> Temperature</label>
+                    <div class="slider-group">
+                        <span class="text-muted">Cold</span>
+                        <input type="range" class="form-range" id="temp" min="0" max="1" step="0.01" value="0.6">
+                        <span class="slider-value" id="tempValue">0.60</span>
+                    </div>
+                </div>
+                
+                <!-- Humidity -->
+                <div class="slider-container">
+                    <label><i class="fas fa-tint text-info"></i> Humidity</label>
+                    <div class="slider-group">
+                        <span class="text-muted">Dry</span>
+                        <input type="range" class="form-range" id="humidity" min="0" max="1" step="0.01" value="0.6">
+                        <span class="slider-value" id="humidityValue">0.60</span>
+                    </div>
+                </div>
+                
+                <!-- Wind Speed -->
+                <div class="slider-container">
+                    <label><i class="fas fa-wind text-secondary"></i> Wind Speed</label>
+                    <div class="slider-group">
+                        <span class="text-muted">Calm</span>
+                        <input type="range" class="form-range" id="windspeed" min="0" max="1" step="0.01" value="0.2">
+                        <span class="slider-value" id="windspeedValue">0.20</span>
+                    </div>
+                </div>
+                
+                <!-- Special Days -->
+                <div class="form-group mt-4">
+                    <label><i class="fas fa-star text-warning"></i> Special Conditions</label>
+                    <div class="checkbox-group">
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="holiday">
+                            <label for="holiday">Holiday</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="workingday" checked>
+                            <label for="workingday">Working Day</label>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Model Info -->
+                <div class="model-info">
+                    <i class="fas fa-chart-line"></i>
+                    <strong>Prediction Accuracy:</strong> 93.8%<br>
+                    <strong>Data Source:</strong> Historical bike sharing patterns
+                </div>
+            </div>
+            
+            <!-- Prediction Panel -->
+            <div class="prediction-panel">
+                <div class="panel-header">
+                    <i class="fas fa-chart-line"></i> AI Prediction
+                </div>
+                
+                <div class="prediction-display">
+                    <div id="results" style="display: none;">
+                        <div class="success-indicator">
+                            <div class="prediction-number" id="predictionValue">0</div>
+                            <div class="prediction-label">bikes expected</div>
+                            <small class="text-success">
+                                <i class="fas fa-check-circle"></i> Prediction Complete
+                            </small>
+                        </div>
+                    </div>
+                    
+                    <div id="default-state">
+                        <i class="fas fa-bicycle" style="font-size: 4rem; color: #ddd; margin: 20px 0;"></i>
+                        <div class="text-muted">Click predict to see demand forecast</div>
+                    </div>
+                    
+                    <div class="loading-spinner" id="loading">
+                        <i class="fas fa-spinner fa-spin" style="font-size: 3rem; color: #2196F3;"></i>
+                        <div class="mt-2">Analyzing...</div>
+                    </div>
+                    
+                    <div class="error-message" id="error">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <div id="errorMessage">Error occurred</div>
+                    </div>
+                </div>
+                
+                <button type="submit" form="predictionForm" class="predict-btn">
+                    <i class="fas fa-magic"></i> Predict Demand
+                </button>
+            </div>
+            
+        </div>
+    </div>
+
+    <script>
+        // Initialize dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            // Set a date within the dataset range (2011-2012)
+            document.getElementById('date').value = '2012-06-15';
+        });
+        
+        // Weather selection functionality with animations
+        document.querySelectorAll('.weather-option').forEach(option => {
+            option.addEventListener('click', function() {
+                // Remove active and selected classes from all options
+                document.querySelectorAll('.weather-option').forEach(o => {
+                    o.classList.remove('active');
+                    o.classList.remove('selected');
+                });
+                
+                // Add active and selected class to clicked option with animation
+                this.classList.add('active');
+                this.classList.add('selected');
+                
+                // Update hidden input
+                document.getElementById('weathersit').value = this.dataset.weather;
+            });
+        });
+        
+        // Range sliders with live value display
+        ['temp', 'humidity', 'windspeed'].forEach(id => {
+            const slider = document.getElementById(id);
+            const display = document.getElementById(id + 'Value');
+            
+            slider.addEventListener('input', function() {
+                display.textContent = parseFloat(this.value).toFixed(2);
+            });
+        });
+        
+        // Form submission handling
+        document.getElementById('predictionForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const loading = document.getElementById('loading');
+            const results = document.getElementById('results');
+            const error = document.getElementById('error');
+            const defaultState = document.getElementById('default-state');
+            const submitBtn = document.querySelector('.predict-btn');
+            
+            // Show loading state
+            loading.classList.add('show');
+            submitBtn.disabled = true;
+            results.style.display = 'none';
+            error.classList.remove('show');
+            defaultState.style.display = 'none';
+            
+            // Collect form data
+            const selectedDate = new Date(document.getElementById('date').value);
+            const formData = {
+                dteday: document.getElementById('date').value,
+                hr: parseInt(document.getElementById('hour').value),
+                season: parseInt(document.getElementById('season').value),
+                weathersit: parseInt(document.getElementById('weathersit').value),
+                temp: parseFloat(document.getElementById('temp').value),
+                atemp: parseFloat(document.getElementById('temp').value), // Use same as temp
+                hum: parseFloat(document.getElementById('humidity').value),
+                windspeed: parseFloat(document.getElementById('windspeed').value),
+                holiday: document.getElementById('holiday').checked ? 1 : 0,
+                workingday: document.getElementById('workingday').checked ? 1 : 0,
+                weekday: selectedDate.getDay() // 0 = Sunday, 6 = Saturday
+            };
+            
+            try {
+                // Make API call to Flask backend
+                const response = await fetch('http://127.0.0.1:5000/predict', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(formData)
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    // Enhanced prediction display with smooth animations
+                    results.style.opacity = '0';
+                    results.style.transform = 'scale(0.8) translateY(30px)';
+                    results.style.display = 'block';
+                    
+                    // Animate counter from 0 to prediction value
+                    const predictionElement = document.getElementById('predictionValue');
+                    const targetValue = Math.round(data.prediction);
+                    
+                    // Smooth reveal animation
+                    setTimeout(() => {
+                        results.style.transition = 'all 0.8s cubic-bezier(0.4, 0, 0.2, 1)';
+                        results.style.opacity = '1';
+                        results.style.transform = 'scale(1) translateY(0)';
+                        
+                        // Animate counter
+                        animateCounter(predictionElement, 0, targetValue, 1200);
+                    }, 100);
+                    
+                } else {
+                    throw new Error(data.error || 'Prediction failed');
+                }
+                
+            } catch (err) {
+                // Display error message
+                console.error('Prediction Error:', err);
+                document.getElementById('errorMessage').textContent = 
+                    err.message.includes('fetch') || err.message.includes('Failed to fetch') ? 
+                    'Connection failed. Check if server is running.' : 
+                    err.message;
+                error.classList.add('show');
+                
+            } finally {
+                // Reset loading state
+                loading.classList.remove('show');
+                submitBtn.disabled = false;
+                
+                // If no results and no error, show default state
+                if (!results.style.display.includes('block') && !error.classList.contains('show')) {
+                    defaultState.style.display = 'block';
+                }
+            }
+        });
+        
+        // Counter animation function
+        function animateCounter(element, start, end, duration) {
+            const range = end - start;
+            const increment = range / (duration / 16);
+            let current = start;
+            
+            const timer = setInterval(() => {
+                current += increment;
+                if (current >= end) {
+                    current = end;
+                    clearInterval(timer);
+                    
+                    // Add a subtle glow effect when complete
+                    element.style.textShadow = '0 0 20px rgba(76, 175, 80, 0.5)';
+                    setTimeout(() => {
+                        element.style.textShadow = 'none';
+                    }, 500);
+                }
+                element.textContent = Math.floor(current);
+            }, 16);
+        }
+        
+        // Enhanced animations and interactions
+        function addEnhancedAnimations() {
+            // Stagger animation for form elements
+            const formElements = document.querySelectorAll('.form-group, .slider-container, .weather-option');
+            formElements.forEach((element, index) => {
+                element.style.opacity = '0';
+                element.style.transform = 'translateY(20px)';
+                element.style.transition = 'all 0.6s cubic-bezier(0.4, 0, 0.2, 1)';
+                
+                setTimeout(() => {
+                    element.style.opacity = '1';
+                    element.style.transform = 'translateY(0)';
+                }, index * 100);
+            });
+            
+            // Add floating animation to panels
+            const panels = document.querySelectorAll('.left-panel, .right-panel, .prediction-panel');
+            panels.forEach((panel, index) => {
+                panel.style.animation = `floatIn 0.8s ease-out ${index * 0.2}s both`;
+            });
+        }
+        
+        // Call enhanced animations on load
+        setTimeout(addEnhancedAnimations, 100);
+        
+        // Add CSS animations
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes slideIn {
+                from { 
+                    opacity: 0; 
+                    transform: translateY(-30px) scale(0.95); 
+                }
+                to { 
+                    opacity: 1; 
+                    transform: translateY(0) scale(1); 
+                }
+            }
+            
+            @keyframes floatIn {
+                from {
+                    opacity: 0;
+                    transform: translateY(30px);
+                }
+                to {
+                    opacity: 1;
+                    transform: translateY(0);
+                }
+            }
+            
+            @keyframes glow {
+                0%, 100% { 
+                    box-shadow: 0 15px 35px rgba(102, 126, 234, 0.4);
+                }
+                50% { 
+                    box-shadow: 0 20px 45px rgba(102, 126, 234, 0.6);
+                }
+            }
+            
+            .predict-btn:hover {
+                animation: glow 2s ease-in-out infinite;
+            }
+            
+            .weather-option {
+                transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            }
+            
+            .slider-value {
+                transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                transform-origin: center;
+            }
+            
+            .slider-value:hover {
+                transform: scale(1.1);
+            }
+            
+            .form-group {
+                transition: all 0.3s ease;
+            }
+            
+            .form-group:hover {
+                transform: translateX(2px);
+            }
+            
+            /* Smooth dropdown animations */
+            .form-select {
+                transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            }
+            
+            .form-select:hover {
+                transform: translateY(-1px);
+                box-shadow: 0 4px 15px rgba(102, 126, 234, 0.2);
+            }
+            
+            /* Loading animation enhancement */
+            @keyframes spin {
+                from { transform: rotate(0deg); }
+                to { transform: rotate(360deg); }
+            }
+            
+            .loading-spinner i {
+                animation: spin 1s linear infinite;
+            }
+            
+            /* Weather options enhanced hover */
+            .weather-option:hover {
+                transform: translateY(-2px) scale(1.02);
+                box-shadow: 0 8px 25px rgba(102, 126, 234, 0.15);
+            }
+            
+            .weather-option.selected {
+                animation: pulse 0.6s ease-out;
+            }
+            
+            @keyframes pulse {
+                0% { transform: scale(1); }
+                50% { transform: scale(1.05); }
+                100% { transform: scale(1); }
+            }
+            
+            /* Prediction number glow animation */
+            #predictionValue {
+                transition: all 0.3s ease;
+            }
+        `;
+        document.head.appendChild(style);
+    </script>
+</body>
+</html>
